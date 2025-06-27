@@ -11,7 +11,7 @@ class BbmarketbApplicationTests {
     }
     @Test
     void asd(){
-        System.out.println("1");
+        System.out.println("2");
     }
 
 }
