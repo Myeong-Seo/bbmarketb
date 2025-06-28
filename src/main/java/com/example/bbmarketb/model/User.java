@@ -16,14 +16,22 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long seq;
-    private String id;
+    @Column(name = "userid")
+    private String userId;
+    @Column(name = "password")
     private String password;
+    @Column(name = "name")
     private String name;
-    private String phone_number;
-    private String adress;
+    @Column(name = "phone_number")
+    private String phoneNumber;
+    @Column(name = "address")
+    private String address;
     private String role;
     private String status;
+    @Column(name = "create_at")
     private LocalDateTime create_at;
+    @Column(name = "latest_at")
     private LocalDateTime latest_at;
+    @Column(name = " social_id")
     private String social_id;
 }
