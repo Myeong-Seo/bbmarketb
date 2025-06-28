@@ -9,9 +9,10 @@ class BbmarketbApplicationTests {
     @Test
     void contextLoads() {
     }
+
     @Test
     void asd(){
-        System.out.println("2");
+        System.out.println("1");
     }
 
 }
