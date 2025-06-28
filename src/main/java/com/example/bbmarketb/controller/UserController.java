@@ -21,7 +21,7 @@ public class UserController {
     //localhost:5173/api/user/signup
     @PostMapping("/signup")
     public ResponseEntity<?> Signup(@RequestBody User user) {
-        if(userRepo.existsById(user.getID())){
+        if(userRepo.existsById(user.getId())){
             return ResponseEntity.badRequest().body("가입된 아이디가 이미 있습니다.");
         }
         return ResponseEntity.ok(userRepo.save(user));
@@ -29,7 +29,7 @@ public class UserController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User user) {
-        String loginUser = userRepo.findById(user.getID());
+        String loginUser = userRepo.findById(user.getId());
         if(loginUser.isEmpty()){
             return ResponseEntity.badRequest().body("가입된 아이디가 없습니다.");
         }

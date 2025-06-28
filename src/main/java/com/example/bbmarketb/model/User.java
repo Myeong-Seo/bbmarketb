@@ -15,7 +15,7 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long seq;
-    private String ID;
+    private String id;
     private String password;
     private String name;
     private String phone_number;
@@ -24,5 +24,5 @@ public class User {
     private String status;
     private LocalDateTime creaete_at;
     private LocalDateTime latest_at;
-    private String social_ID;
+    private String social_id;
 }
