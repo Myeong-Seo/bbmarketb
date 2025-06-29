@@ -33,30 +33,45 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody User user){ //RequestBody - DB에 들어가는 경로를 만들어 놓고 / DB에 들어가서 해야할 일을 여기서 선언 (ID 찾기)
         Optional<User> loginUser = userRepository.findByUserId(user.getUserId()); //DB에서 가져오기
-        Optional<User> loginP = userRepository.findByUserId(user.getPassword());
 
-        /*
-        if(loginUser.isPresent() && loginP.isPresent()){
-           if(!loginUser.equals(user.getUserId())) {
-               return ResponseEntity.badRequest().body("가입된 ID가 없습니다");
-           }
+        if(loginUser.isEmpty()){
+            return ResponseEntity.ok("가입된 아이디가 없습니다.");
         }
-        */
-        // 2. 아이디 존재 여부 확인
-        if (loginUser.isEmpty()) {
-            return ResponseEntity.badRequest().body("가입된 ID가 없습니다");
+        else if((loginUser.isPresent())&&(!loginUser.get().getPassword().equals(user.getPassword()))){
+                return ResponseEntity.ok("비밀번호가 틀렸습니다.");
         }
-
-        // 3. 비밀번호 비교
-        if (!loginUser.get().getPassword().equals(user.getPassword())) {
-            return ResponseEntity.badRequest().body("비밀번호가 일치하지 않습니다");
+        else {     // 4. 로그인 성공
+            return ResponseEntity.ok(loginUser.get().getUserId() + "님 로그인 되었습니다");
         }
-
-        // 4. 로그인 성공
-        return ResponseEntity.ok(user.getUserId() + "님 로그인 되었습니다");
-
-
-        //return ResponseEntity.ok( "로그인 되었습니다");
     }
+//로그인 - 메인페이지 이동 - 회원정보 버튼 누르면 db에서 회원정보 가져오기
+    /*
+    @GetMapping("/me")
+    public ResponseEntity<?> getUserInfo(@RequestParam String userId){
+        Optional<User> user = userRepository.findByUserId(userId);
 
+        if(user.isEmpty()){
+            return ResponseEntity.badRequest().body("사용자 정보를 찾을 수 없습니다");
+        }
+        return ResponseEntity.ok(user.get());
+    }
+*/
+
+    @PostMapping("/me")
+    public ResponseEntity<?> updateUserInfo(@RequestBody User updateUser){
+        Optional<User> userinfo = userRepository.findByUserId(updateUser.getUserId());
+
+        if(userinfo.isEmpty()){
+            return ResponseEntity.badRequest().body("사용자가 존재하지 않습니다");
+        }
+
+        User editinfo = userinfo.get();
+        editinfo.setPassword(updateUser.getPassword());
+        editinfo.setAddress(updateUser.getAddress());
+        editinfo.setPhoneNumber(updateUser.getPhoneNumber());
+
+        userRepository.save(editinfo);
+        System.out.println(editinfo);
+        return ResponseEntity.ok("회원 정보가 수정되었습니다.");
+    }
 }
