@@ -23,7 +23,6 @@ public class UserController {
 
     LocalDateTime now = LocalDateTime.now();
 
-
     //localhost:5173/api/user/signup
     @PostMapping("/signup")
     public ResponseEntity<?> Signup(@RequestBody User user) {
@@ -56,21 +55,19 @@ public class UserController {
         User loginUserId = userRepo.findByUserId(user.getUserId()).orElseThrow();
         User loginUserPassword = userRepo.findByPassword(user.getPassword()).orElseThrow();
 
-        Optional<User> loginU =  userRepo.findByUserId(loginUserId.getUserId());
-        Optional<User> loginP =  userRepo.findByPassword(loginUserId.getPassword());
-        if(loginU.isPresent() && loginP.isPresent()) {
-
-            return ResponseEntity.badRequest().body("ID ---");
-
-        }
-        else{
-
-        }
         if(!loginUserId.getUserId().equals(user.getUserId()) && !loginUserPassword.getPassword().equals(user.getPassword())){
             return ResponseEntity.badRequest().body("가입된 아이디가 없습니다.");
         }
 
         return ResponseEntity.ok("회원님 로그인 되었습니다");
     }
+
+    @PostMapping("/delete")
+    public ResponseEntity<?> delete(@RequestBody User user) {
+        User loginUserId = userRepo.findByUserId(user.getUserId()).orElseThrow();
+        userRepo.delete(loginUserId); // 회원 삭제
+        return ResponseEntity.ok("회원탈퇴 완료되었습니다.");
+    }
+
 
 }
