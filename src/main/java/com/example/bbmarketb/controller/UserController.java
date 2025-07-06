@@ -2,11 +2,13 @@ package com.example.bbmarketb.controller;
 
 import com.example.bbmarketb.model.User;
 import com.example.bbmarketb.repository.UserRepository;
-import lombok.Data;
+import com.example.bbmarketb.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -18,63 +20,162 @@ public class UserController {
 
     @Autowired
     private UserRepository userRepo;
+
     @Autowired
-    private UserRepository userRepository;
+    private JwtUtil jwtUtil;
+
+    LocalDateTime now = LocalDateTime.now();
+
 
     //localhost:5173/api/user/signup
     @PostMapping("/signup")
     public ResponseEntity<?> Signup(@RequestBody User user) {
-        if (userRepo.existsByUserId(user.getUserId())) {
-            return ResponseEntity.badRequest().body("가입된 ID가 이미 있습니다");
+        try {
+            if (userRepo.existsByUserId(user.getUserId())) {
+                return ResponseEntity.badRequest().body("가입된 아이디가 이미 있습니다.");
+            }
+            User saveUser = new User();
+            saveUser.setUserId(user.getUserId());
+            saveUser.setPassword(user.getPassword());
+            saveUser.setName(user.getName());
+            saveUser.setPhoneNumber(user.getPhoneNumber());
+            saveUser.setAddress(user.getAddress());
+            saveUser.setCreate_at(now);
+            saveUser.setLatest_at(now);
+            saveUser.setRole("일반회원");
+            saveUser.setStatus("Active");
+            System.out.println("UserId: " + user.getUserId());
+            System.out.println("Password: " + user.getPassword());
+            userRepo.save(saveUser);
+            return ResponseEntity.ok("회원가입이 완료되었습니다.");
+        }catch (Exception e){
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("에러 발생");
         }
-        return ResponseEntity.ok(userRepo.save(user));
     }
 
-    //localhost:5173/api/user/login
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody User user) { //RequestBody - DB에 들어가는 경로를 만들어 놓고 / DB에 들어가서 해야할 일을 여기서 선언 (ID 찾기)
-        Optional<User> loginUser = userRepository.findByUserId(user.getUserId()); //DB에서 가져오기
-        System.out.println("asdf");
+    public ResponseEntity<?> login(@RequestBody User user) {
+        Optional<User> loginUser = userRepo.findByUserId(user.getUserId());
+
         if (loginUser.isEmpty()) {
-            return ResponseEntity.ok("가입된 아이디가 없습니다.");
-        } else if ((loginUser.isPresent()) && (!loginUser.get().getPassword().equals(user.getPassword()))) {
-            return ResponseEntity.ok("비밀번호가 틀렸습니다.");
-        } else {     // 4. 로그인 성공
-            return ResponseEntity.ok(loginUser.get().getUserId() + "님 로그인 되었습니다");
+            return ResponseEntity.badRequest().body("가입된 아이디가 없습니다.");
         }
+
+        if (!loginUser.get().getPassword().equals(user.getPassword())) {
+            return ResponseEntity.badRequest().body("비밀번호가 틀렸습니다.");
+        }
+
+        String token = jwtUtil.generateToken(loginUser.get().getUserId());
+        return ResponseEntity.ok().body(token); // 토큰 반환
     }
-//로그인 - 메인페이지 이동 - 회원정보 버튼 누르면 db에서 회원정보 가져오기
 
     @GetMapping("/me")
-    public ResponseEntity<?> getUserInfo(@RequestParam String userId) {
-        System.out.println("asdf" + userId );
-        Optional<User> user = userRepository.findByUserId(userId);
+    public ResponseEntity<?> getUserInfo(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.badRequest().body("토큰이 없습니다.");
+        }
+
+        String token = authHeader.substring(7); // "Bearer " 이후 토큰만 추출
+
+        if (!jwtUtil.validateToken(token)) {
+            return ResponseEntity.status(401).body("유효하지 않은 토큰입니다.");
+        }
+
+        String userId = jwtUtil.getUserIdFromToken(token);
+        Optional<User> user = userRepo.findByUserId(userId);
 
         if (user.isEmpty()) {
-            return ResponseEntity.badRequest().body("사용자 정보를 찾을 수 없습니다");
+            return ResponseEntity.badRequest().body("사용자 정보를 찾을 수 없습니다.");
         }
+
         return ResponseEntity.ok(user.get());
-
     }
-}
 
-/*
-    @PostMapping("/me")
-    public ResponseEntity<?> updateUserInfo(@RequestBody User updateUser){
-        Optional<User> userinfo = userRepository.findByUserId(updateUser.getUserId());
-
-        if(userinfo.isEmpty()){
-            return ResponseEntity.badRequest().body("사용자가 존재하지 않습니다");
+    @PutMapping("/update")
+    public ResponseEntity<?> updateUserInfo(@RequestBody User updateUser, @RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("토큰이 없습니다.");
         }
 
-        User editinfo = userinfo.get();
-        editinfo.setPassword(updateUser.getPassword());
-        editinfo.setAddress(updateUser.getAddress());
-        editinfo.setPhoneNumber(updateUser.getPhoneNumber());
+        String token = authHeader.substring(7);
+        if (!jwtUtil.validateToken(token)) {
+            return ResponseEntity.status(401).body("유효하지 않은 토큰입니다.");
+        }
 
-        userRepository.save(editinfo);
-        System.out.println(editinfo);
-        return ResponseEntity.ok("회원 정보가 수정되었습니다.");
+        String userId = jwtUtil.getUserIdFromToken(token);
+        Optional<User> userOptional = userRepo.findByUserId(userId);
+
+        if (userOptional.isEmpty()) {
+            return ResponseEntity.status(404).body("사용자를 찾을 수 없습니다.");
+        }
+
+        User user = userOptional.get();
+        user.setPassword(updateUser.getPassword());
+        user.setPhoneNumber(updateUser.getPhoneNumber());
+        user.setAddress(updateUser.getAddress());
+        user.setLatest_at(LocalDateTime.now());
+
+        userRepo.save(user);
+        return ResponseEntity.ok("회원정보 수정 완료");
     }
+
+    @DeleteMapping("/delete")
+    public ResponseEntity<?> deleteUser(@RequestHeader("Authorization") String authHeader, @RequestBody Map<String, String> request){
+        if(authHeader == null || !authHeader.startsWith("Bearer")){
+                return  ResponseEntity.status(401).body("토큰이 없습니다");
+        }
+
+        String token = authHeader.substring(7);
+        if(!jwtUtil.validateToken(token)){
+            return ResponseEntity.status(401).body("유효하지 않은 토큰입니다.");
+        }
+
+        String userId = jwtUtil.getUserIdFromToken(token);
+        Optional<User> userOptional =userRepo.findByUserId(userId);
+
+        String password = request.get("password");
+        User user = userOptional.get();
+
+        if (!user.getPassword().equals(password)) {
+            return ResponseEntity.status(403).body("비밀번호가 일치하지 않습니다.");
+        }
+
+        userRepo.delete(user);
+        return ResponseEntity.ok("회원 탈퇴가 완료되었습니다");
+    }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestHeader("Authorization") String authHeader, @RequestBody Map<String,String> passwordMap){
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("토큰이 없습니다.");
+        }
+        String token = authHeader.substring(7);
+
+        if (!jwtUtil.validateToken(token)) {
+            return ResponseEntity.status(401).body("유효하지 않은 토큰입니다.");
+        }
+
+        String userId = jwtUtil.getUserIdFromToken(token);
+        Optional<User> userOptional = userRepo.findByUserId(userId);
+
+        if (userOptional.isEmpty()) {
+            return ResponseEntity.status(404).body("사용자를 찾을 수 없습니다.");
+        }
+
+        User user = userOptional.get();
+        String currentPassword = passwordMap.get("currentPassword");
+        String newPassword = passwordMap.get("newPassword");
+
+        if (!user.getPassword().equals(currentPassword)) {
+            return ResponseEntity.status(403).body("현재 비밀번호가 일치하지 않습니다.");
+        }
+
+        user.setPassword(newPassword);
+        user.setLatest_at(LocalDateTime.now());
+        userRepo.save(user);
+
+        return ResponseEntity.ok("비밀번호가 변경되었습니다.");
+    }
+
 }
-*/
