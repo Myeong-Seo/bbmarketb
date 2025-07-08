@@ -35,5 +35,5 @@ public class User {
     @Column(name = "latest_at")
     private LocalDateTime latest_at;
     @Column(name = "social_id")
-    private String social_id;
+    private String socialId;
 }

@@ -1,7 +1,10 @@
 package com.example.bbmarketb.controller;
 
+import com.example.bbmarketb.model.ResetToken;
 import com.example.bbmarketb.model.User;
+import com.example.bbmarketb.repository.ResetTokenRepository;
 import com.example.bbmarketb.repository.UserRepository;
+import com.example.bbmarketb.service.EmailService;
 import com.example.bbmarketb.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/user")
@@ -179,5 +183,70 @@ public class UserController {
 
         return ResponseEntity.ok("비밀번호가 변경되었습니다.");
     }
+
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private ResetTokenRepository tokenRepo;
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
+        String userId = request.get("userId");  // 이메일 역할
+
+        Optional<User> userOptional = userRepo.findByUserId(userId);
+        if (userOptional.isEmpty()) {
+            return ResponseEntity.status(404).body("등록된 이메일이 없습니다.");
+        }
+
+        String token = UUID.randomUUID().toString();
+
+        ResetToken resetToken = new ResetToken();
+        resetToken.setToken(token);
+        resetToken.setEmail(userId);  // ResetToken 엔티티에 이메일 저장
+        resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(30));
+        tokenRepo.save(resetToken);
+
+        emailService.sendResetPasswordEmail(userId, token);
+
+        return ResponseEntity.ok("비밀번호 재설정 링크가 이메일로 전송되었습니다.");
+    }
+
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+        String token = request.get("token");
+        String newPassword = request.get("newPassword");
+
+        Optional<ResetToken> resetTokenOpt = tokenRepo.findByToken(token);
+        if (resetTokenOpt.isEmpty()) {
+            return ResponseEntity.status(400).body("유효하지 않은 토큰입니다.");
+        }
+
+        ResetToken resetToken = resetTokenOpt.get();
+
+        if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.status(400).body("토큰이 만료되었습니다.");
+        }
+
+        Optional<User> userOpt = userRepo.findByUserId(resetToken.getEmail());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(404).body("사용자를 찾을 수 없습니다.");
+        }
+
+        User user = userOpt.get();
+        // 비밀번호 암호화가 필요 시 여기서 처리
+
+        user.setPassword(newPassword);
+        user.setLatest_at(LocalDateTime.now());
+        userRepo.save(user);
+
+        // 토큰 사용 후 삭제
+        tokenRepo.delete(resetToken);
+
+        return ResponseEntity.ok("비밀번호가 성공적으로 재설정되었습니다.");
+    }
+
 
 }

@@ -10,4 +10,5 @@ public interface UserRepository extends JpaRepository<User,Long> {
     //기능선언
     boolean existsByUserId (String id);
     Optional<User> findByUserId(String id);
+    Optional<User> findBySocialId(String socialId);
 }
