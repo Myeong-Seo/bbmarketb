@@ -16,7 +16,7 @@ public class EmailService {
         String content = "비밀번호 재설정 링크를 클릭하세요: " + link;
 
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("zaxw5965@gmail.com");
+        message.setFrom("");
         message.setTo(to);
         message.setSubject(subject);
         message.setText(content);
